@@ -1,0 +1,181 @@
+import { LicenseItem, UserAccount } from '../types';
+
+export const INITIAL_USERS: UserAccount[] = [
+  {
+    id: 'usr-1',
+    username: 'admin',
+    fullName: 'Admin Engineering (Super Admin)',
+    email: 'admengmidtownhotelsmd@gmail.com',
+    role: 'Admin',
+    password: 'admin',
+    active: true,
+    lastLogin: '2026-09-29 19:40'
+  },
+  {
+    id: 'usr-2',
+    username: 'staff',
+    fullName: 'Budi Santoso (Staff Penginput)',
+    email: 'staff.engineering@midtownhotel.co.id',
+    role: 'Staff',
+    password: 'staff',
+    active: true,
+    lastLogin: '2026-09-28 14:15'
+  },
+  {
+    id: 'usr-3',
+    username: 'hendra',
+    fullName: 'Hendra Wijaya (Chief Engineer)',
+    email: 'chief.eng@midtownhotel.co.id',
+    role: 'Admin',
+    password: 'password123',
+    active: true,
+    lastLogin: '2026-09-27 10:05'
+  }
+];
+
+export const INITIAL_LICENSES: LicenseItem[] = [
+  {
+    id: 'LIC-2026-001',
+    documentName: 'Sertifikat Laik Fungsi (SLF) Bangunan Gedung Hotel',
+    licenseNumber: '503/SLF-BG/DPMPTSP/X/2023',
+    issuer: 'DPMPTSP & Dinas PUPR Kota',
+    issueDate: '2023-10-18',
+    expiryDate: '2026-10-18', // ~19 days from 2026-09-29 -> Critical H-60
+    picName: 'Hendra Wijaya (Chief Engineer)',
+    picEmail: 'chief.eng@midtownhotel.co.id',
+    fileUrl: 'https://drive.google.com/file/d/1aBcDeFgHiJkLmNoPqRsTuVwXyZ012345/view',
+    fileName: 'SLF_Bangunan_Gedung_Hotel_2023-2026.pdf',
+    fileSize: '4.2 MB',
+    status: 'Dalam Proses',
+    notes: 'Sidang berkas TABG (Tim Ahli Bangunan Gedung) tahap 2 telah selesai diajukan.',
+    lastNotifSent: '2026-09-28 07:00'
+  },
+  {
+    id: 'LIC-2026-002',
+    documentName: 'Surat Keterangan Kelaikan K3 Lift Penumpang & Service',
+    licenseNumber: 'K3-ELEV/DISNAKER-KT/XI/2025',
+    issuer: 'Disnakertrans Provinsi (Pengawas K3)',
+    issueDate: '2025-11-12',
+    expiryDate: '2026-11-12', // ~44 days from 2026-09-29 -> Critical H-60
+    picName: 'Budi Santoso (Staff Penginput)',
+    picEmail: 'staff.engineering@midtownhotel.co.id',
+    fileUrl: 'https://drive.google.com/file/d/1bCdEfGhIjKlMnOpQrStUvWxYz123456/view',
+    fileName: 'Suket_Uji_Riksa_Lift_K3.pdf',
+    fileSize: '2.8 MB',
+    status: 'Belum Diproses',
+    notes: 'Perlu koordinasi dengan PJK3 rekanan PT Adhi Elevator untuk jadwal uji riksa tahunan.',
+    lastNotifSent: '2026-09-25 07:00'
+  },
+  {
+    id: 'LIC-2026-003',
+    documentName: 'Izin Operasional & Sertifikat Laik Operasi (SLO) Genset 500 kVA',
+    licenseNumber: 'ESDM-SLO/GEN-500KVA/2024',
+    issuer: 'Dinas ESDM / Litrik Kemenaker',
+    issueDate: '2024-11-05',
+    expiryDate: '2026-11-05', // ~37 days from 2026-09-29 -> Critical H-60
+    picName: 'Hendra Wijaya (Chief Engineer)',
+    picEmail: 'admengmidtownhotelsmd@gmail.com',
+    fileUrl: 'https://drive.google.com/file/d/1cDeFgHiJkLmNoPqRsTuVwXyZa234567/view',
+    fileName: 'SLO_Genset_Caterpillar_500kVA.pdf',
+    fileSize: '3.1 MB',
+    status: 'Dalam Proses',
+    notes: 'Dokumen uji emisi gas buang dan pembumian sudah disiapkan.',
+    lastNotifSent: '2026-09-27 07:00'
+  },
+  {
+    id: 'LIC-2026-004',
+    documentName: 'Rekomendasi Proteksi Kebakaran (Hydrant & Alarm Sprinkler)',
+    licenseNumber: 'DAMKAR/REK-PROT/09/2025',
+    issuer: 'Dinas Pemadam Kebakaran & Penyelamatan',
+    issueDate: '2025-09-15',
+    expiryDate: '2026-09-15', // -14 days -> EXPIRED
+    picName: 'Agus Pratama (Safety Officer)',
+    picEmail: 'safety.officer@midtownhotel.co.id',
+    fileUrl: 'https://drive.google.com/file/d/1dEfGhIjKlMnOpQrStUvWxYzAb345678/view',
+    fileName: 'Rekomendasi_Damkar_Tahunan_2025.pdf',
+    fileSize: '1.9 MB',
+    status: 'Dalam Proses',
+    notes: 'KEDALUWARSA! Jadwal simulasi flow test damkar telah diajukan surat permohonannya ke posko damkar.',
+    lastNotifSent: '2026-09-29 07:00'
+  },
+  {
+    id: 'LIC-2026-005',
+    documentName: 'Izin Pengusahaan Air Tanah (SIPA Sumur Bor 1 & 2)',
+    licenseNumber: 'SIPA-AT/BWS-KAL/04/2024',
+    issuer: 'Balai Wilayah Sungai / Kementerian ESDM',
+    issueDate: '2024-04-10',
+    expiryDate: '2027-04-10', // Safe (> 180 days)
+    picName: 'Budi Santoso (Staff Penginput)',
+    picEmail: 'staff.engineering@midtownhotel.co.id',
+    fileUrl: 'https://drive.google.com/file/d/1eFgHiJkLmNoPqRsTuVwXyZAbc456789/view',
+    fileName: 'SIPA_Air_Tanah_Sumur_DeepWell.pdf',
+    fileSize: '5.4 MB',
+    status: 'Selesai',
+    notes: 'Water meter digital aktif dan pelaporan debit bulanan teratur ke Bapenda.',
+    lastNotifSent: '-'
+  },
+  {
+    id: 'LIC-2026-006',
+    documentName: 'Sertifikat Standar Usaha Hotel Bintang 4 (LSU Pariwisata)',
+    licenseNumber: 'LSU-PAR/CERT-089/2025',
+    issuer: 'Lembaga Sertifikasi Usaha Pariwisata & Kemenparekraf',
+    issueDate: '2025-06-20',
+    expiryDate: '2028-06-20', // Safe
+    picName: 'Hendra Wijaya (Chief Engineer)',
+    picEmail: 'admengmidtownhotelsmd@gmail.com',
+    fileUrl: 'https://drive.google.com/file/d/1fGhIjKlMnOpQrStUvWxYzAbcd567890/view',
+    fileName: 'Sertifikat_LSU_Hotel_Bintang_4.pdf',
+    fileSize: '3.7 MB',
+    status: 'Selesai',
+    notes: 'Masa berlaku 3 tahun, audit surveillance tahunan dijadwalkan Juni 2027.',
+    lastNotifSent: '-'
+  },
+  {
+    id: 'LIC-2026-007',
+    documentName: 'Sertifikat Laik Higiene Sanitasi Jasa Boga & Restoran Hotel',
+    licenseNumber: '440/SLHS-JABOG/DINKES/2025',
+    issuer: 'Dinas Kesehatan Kota',
+    issueDate: '2025-11-20',
+    expiryDate: '2026-11-20', // ~52 days from 2026-09-29 -> Critical H-60
+    picName: 'Ratna Dewi (Food & Beverage Manager)',
+    picEmail: 'fb.manager@midtownhotel.co.id',
+    fileUrl: 'https://drive.google.com/file/d/1gHiJkLmNoPqRsTuVwXyZAbcde678901/view',
+    fileName: 'Sertifikat_Higiene_Sanitasi_Dinkes.pdf',
+    fileSize: '1.5 MB',
+    status: 'Belum Diproses',
+    notes: 'Hasil swab rektal penjamah makanan (cook & steward) perlu diperbarui.',
+    lastNotifSent: '2026-09-29 07:00'
+  },
+  {
+    id: 'LIC-2026-008',
+    documentName: 'Sertifikat Pengesahan Instalasi Penyalur Petir (Lightning Arrester)',
+    licenseNumber: 'PETIR/DISNAKER-K3/01/2025',
+    issuer: 'Disnakertrans Provinsi (Bidang K3)',
+    issueDate: '2025-01-14',
+    expiryDate: '2027-01-14', // Safe (> 100 days)
+    picName: 'Hendra Wijaya (Chief Engineer)',
+    picEmail: 'chief.eng@midtownhotel.co.id',
+    fileUrl: 'https://drive.google.com/file/d/1hIjKlMnOpQrStUvWxYzAbcdef789012/view',
+    fileName: 'Suket_Uji_Penyalur_Petir.pdf',
+    fileSize: '2.1 MB',
+    status: 'Selesai',
+    notes: 'Nilai resistansi grounding 0.8 Ohm (di bawah ambang batas standar < 5 Ohm).',
+    lastNotifSent: '-'
+  },
+  {
+    id: 'LIC-2026-009',
+    documentName: 'SLO TRAFO 1000KVA',
+    licenseNumber: 'SLO-TRF/1000KVA/LPE/2016',
+    issuer: 'PT. Lintas Prima Energy',
+    issueDate: '2016-08-05',
+    expiryDate: '2016-08-05',
+    picName: 'Hendra Wijaya (Chief Engineer)',
+    picEmail: 'admengmidtownhotelsmd@gmail.com',
+    fileUrl: 'https://drive.google.com/file/d/1hIjKlMnOpQrStUvWxYzAbcdef789013/view',
+    fileName: 'SLO_TRAFO_1000KVA_PT_Lintas_Prima_Energy.pdf',
+    fileSize: '3.4 MB',
+    status: 'Dalam Proses',
+    notes: 'SLO Trafo 1000 kVA perlu perpanjangan dan pengetesan ulang impedansi pembumian.',
+    lastNotifSent: '2026-09-29 07:00'
+  }
+];

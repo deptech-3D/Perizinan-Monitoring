@@ -1,0 +1,8 @@
+{
+  "name": "SIMPERIZINAN - Sistem Monitoring Perizinan",
+  "description": "Sistem Monitoring Perizinan berbasis Google Apps Script, Google Sheets, dan Google Drive dengan reminder otomatis H-60 dan multi-user role.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

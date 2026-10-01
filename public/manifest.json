@@ -1,0 +1,32 @@
+{
+  "id": "/",
+  "name": "SIMPERIZINAN - Perizinan Hotel",
+  "short_name": "Perizinan",
+  "description": "Sistem Monitoring & Notifikasi Perizinan Legalitas Hotel Terintegrasi Google Cloud",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#08142c",
+  "theme_color": "#0f2b5c",
+  "icons": [
+    {
+      "src": "/pwa-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/pwa-maskable-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}
