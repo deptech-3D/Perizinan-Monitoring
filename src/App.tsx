@@ -97,17 +97,18 @@ export default function App() {
     if (!saved) return INITIAL_LICENSES;
     try {
       const parsed: LicenseItem[] = JSON.parse(saved);
-      // Smart merge: ensure new items (like SLO TRAFO 1000KVA) are included if not present
-      const existingNames = new Set(parsed.map(item => item.documentName?.trim().toLowerCase()));
-      const missing = INITIAL_LICENSES.filter(
-        item => !existingNames.has(item.documentName?.trim().toLowerCase())
+      // Clean out any stale default dummy mock items
+      const cleaned = parsed.filter(item => 
+        !item.licenseNumber?.includes('DAMKAR/REK-PROT') &&
+        !item.licenseNumber?.includes('SIPA-AT/BWS-KAL') &&
+        !item.licenseNumber?.includes('LSU-PAR/CERT-089') &&
+        !item.licenseNumber?.includes('SLO-TRF/1000KVA/LPE/2016')
       );
-      if (missing.length > 0) {
-        const merged = [...parsed, ...missing];
-        localStorage.setItem('simperizinan_licenses', JSON.stringify(merged));
-        return merged;
+      if (cleaned.length === 0) {
+        localStorage.setItem('simperizinan_licenses', JSON.stringify(INITIAL_LICENSES));
+        return INITIAL_LICENSES;
       }
-      return parsed;
+      return cleaned;
     } catch {
       return INITIAL_LICENSES;
     }
@@ -115,7 +116,15 @@ export default function App() {
 
   const [users, setUsers] = useState<UserAccount[]>(() => {
     const saved = localStorage.getItem('simperizinan_users');
-    return saved ? JSON.parse(saved) : INITIAL_USERS;
+    if (saved) {
+      try {
+        const parsed: UserAccount[] = JSON.parse(saved);
+        const cleaned = parsed.filter(u => u.id !== 'usr-2' && u.id !== 'usr-3' && u.username !== 'staff' && u.username !== 'hendra');
+        localStorage.setItem('simperizinan_users', JSON.stringify(cleaned));
+        return cleaned.length > 0 ? cleaned : INITIAL_USERS;
+      } catch {}
+    }
+    return INITIAL_USERS;
   });
 
   // Google Sheets Live Connection State
@@ -123,12 +132,15 @@ export default function App() {
     const stored = getStoredWebAppUrl();
     return stored || 'https://script.google.com/macros/s/AKfycbwdCvmEEQ9rRCS7fB4zGeJqGlT1y-b6pHhnmpfNBtCn8K9D52PwKTphmlWqYDQTV0tRKg/exec';
   });
+  const [spreadsheetUrl, setSpreadsheetUrl] = useState<string>(() => {
+    return localStorage.getItem('simperizinan_spreadsheet_url') || '';
+  });
   const [autoSync, setAutoSync] = useState<boolean>(() => getStoredAutoSync());
   const [isSyncing, setIsSyncing] = useState<boolean>(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [isSyncModalOpen, setIsSyncModalOpen] = useState<boolean>(false);
-  const [driveFolderId, setDriveFolderId] = useState<string>(() => localStorage.getItem('simperizinan_drive_folder') || '');
+  const [driveFolderId, setDriveFolderId] = useState<string>(() => localStorage.getItem('simperizinan_drive_folder') || '1B53s98xT6FCFQwooHSQgX4_L3Px1qglf');
 
   // Active view: 'home' matches the user's mobile app screenshot!
   const [activeTab, setActiveTab] = useState<string>('home');
@@ -187,10 +199,13 @@ export default function App() {
 
   // Synchronize with Google Sheets
   const performSync = useCallback(async (silent = false) => {
-    if (!webAppUrl || !webAppUrl.trim()) {
+    // Prefer spreadsheetUrl if provided by admin, otherwise webAppUrl
+    const targetUrl = (spreadsheetUrl && spreadsheetUrl.trim()) || (webAppUrl && webAppUrl.trim());
+
+    if (!targetUrl) {
       if (!silent) {
         setIsSyncModalOpen(true);
-        showToast('Penyebab data belum terupdate: Belum ada URL Google Apps Script yang terhubung.', 'info');
+        showToast('Penyebab data belum terupdate: Belum ada URL Google Spreadsheet atau Apps Script yang terhubung.', 'info');
       }
       return;
     }
@@ -199,7 +214,19 @@ export default function App() {
     setSyncError(null);
 
     try {
-      const res = await fetchLicensesFromGoogleSheets(webAppUrl);
+      let res = await fetchLicensesFromGoogleSheets(targetUrl);
+
+      // If targetUrl failed and alternative URL exists, try alternative URL
+      if (!res.success && spreadsheetUrl && webAppUrl) {
+        const altUrl = targetUrl === spreadsheetUrl ? webAppUrl : spreadsheetUrl;
+        if (altUrl && altUrl !== targetUrl) {
+          const altRes = await fetchLicensesFromGoogleSheets(altUrl);
+          if (altRes.success) {
+            res = altRes;
+          }
+        }
+      }
+
       if (res.success && res.data) {
         setLicenses(res.data);
         saveServerLicenses(res.data);
@@ -222,18 +249,22 @@ export default function App() {
     } finally {
       setIsSyncing(false);
     }
-  }, [webAppUrl]);
+  }, [webAppUrl, spreadsheetUrl]);
 
   // Cross-device sync (PC & HP): Fetch shared server data on mount
   useEffect(() => {
     let mounted = true;
     (async () => {
-      // 1. Sync config (webAppUrl & driveFolderId) across devices
+      // 1. Sync config (webAppUrl & driveFolderId & spreadsheetUrl) across devices
       const srvCfg = await fetchServerConfig();
       if (mounted && srvCfg) {
         if (srvCfg.webAppUrl && srvCfg.webAppUrl !== webAppUrl) {
           setWebAppUrl(srvCfg.webAppUrl);
           setStoredWebAppUrl(srvCfg.webAppUrl);
+        }
+        if (srvCfg.spreadsheetUrl && srvCfg.spreadsheetUrl !== spreadsheetUrl) {
+          setSpreadsheetUrl(srvCfg.spreadsheetUrl);
+          localStorage.setItem('simperizinan_spreadsheet_url', srvCfg.spreadsheetUrl);
         }
         if (srvCfg.driveFolderId && srvCfg.driveFolderId !== driveFolderId) {
           setDriveFolderId(srvCfg.driveFolderId);
@@ -245,6 +276,7 @@ export default function App() {
       const srvLicenses = await fetchServerLicenses();
       if (mounted && srvLicenses && srvLicenses.length > 0) {
         setLicenses(srvLicenses);
+        localStorage.setItem('simperizinan_licenses', JSON.stringify(srvLicenses));
       } else if (mounted && licenses.length > 0) {
         saveServerLicenses(licenses);
       }
@@ -253,9 +285,10 @@ export default function App() {
       let activeUsers = users;
       const srvUsers = await fetchServerUsers();
       if (mounted && srvUsers && srvUsers.length > 0) {
-        activeUsers = srvUsers;
-        setUsers(srvUsers);
-        localStorage.setItem('simperizinan_users', JSON.stringify(srvUsers));
+        const cleaned = srvUsers.filter(u => u.id !== 'usr-2' && u.id !== 'usr-3' && u.username !== 'staff' && u.username !== 'hendra');
+        activeUsers = cleaned;
+        setUsers(cleaned);
+        localStorage.setItem('simperizinan_users', JSON.stringify(cleaned));
       } else if (mounted && users.length > 0) {
         saveServerUsers(users);
       }
@@ -340,6 +373,74 @@ export default function App() {
     localStorage.setItem('simperizinan_drive_folder', cleanId);
     await saveServerConfig(undefined, cleanId);
     showToast('Folder Google Drive tujuan foto berhasil disimpan!', 'success');
+  };
+
+  const handleSaveAdminConfig = async (newUrl: string, newFolderId: string, newSpreadsheetUrl?: string): Promise<boolean> => {
+    try {
+      if (newUrl) {
+        setWebAppUrl(newUrl);
+        setStoredWebAppUrl(newUrl);
+      }
+      if (newSpreadsheetUrl !== undefined) {
+        setSpreadsheetUrl(newSpreadsheetUrl);
+        localStorage.setItem('simperizinan_spreadsheet_url', newSpreadsheetUrl);
+      }
+      if (newFolderId) {
+        const cleanId = extractDriveFolderId(newFolderId);
+        setDriveFolderId(cleanId);
+        localStorage.setItem('simperizinan_drive_folder', cleanId);
+      }
+      const cleanFolder = extractDriveFolderId(newFolderId);
+      await saveServerConfig(newUrl || undefined, cleanFolder || undefined, newSpreadsheetUrl);
+      showToast('Konfigurasi Google Cloud (Web App / Sheets & Google Drive) berhasil disimpan permanen!', 'success');
+      return true;
+    } catch (err: any) {
+      showToast(`Gagal menyimpan konfigurasi: ${err.message}`, 'error');
+      return false;
+    }
+  };
+
+  const handleSyncUsers = async () => {
+    const targetUrl = webAppUrl || spreadsheetUrl;
+    if (!targetUrl || !targetUrl.startsWith('http')) {
+      showToast('URL Google Apps Script atau Spreadsheet belum diisi.', 'error');
+      return;
+    }
+    setIsSyncing(true);
+    try {
+      const res = await fetchUsersFromGoogleSheets(targetUrl);
+      if (res.success && res.data && res.data.length > 0) {
+        const userMap = new Map<string, UserAccount>();
+        users.forEach((u) => userMap.set(u.username.toLowerCase(), u));
+        res.data.forEach((u) => {
+          const key = u.username.toLowerCase();
+          userMap.set(key, { ...(userMap.get(key) || {}), ...u });
+        });
+        const merged = Array.from(userMap.values());
+        setUsers(merged);
+        localStorage.setItem('simperizinan_users', JSON.stringify(merged));
+        await saveServerUsers(merged);
+        setLastSyncedAt(new Date().toLocaleTimeString('id-ID'));
+        showToast(`Berhasil menyinkronkan ${res.data.length} akun pengguna dari sheet Users!`, 'success');
+      } else {
+        for (const u of users) {
+          await saveUserToGoogleSheets(targetUrl, u);
+        }
+        setLastSyncedAt(new Date().toLocaleTimeString('id-ID'));
+        showToast(`Berhasil mengunggah ${users.length} akun pengguna lokal ke sheet Users di Google Spreadsheet!`, 'success');
+      }
+    } catch (err: any) {
+      showToast(`Gagal sinkron akun: ${err.message}`, 'error');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  const handleSyncAll = async () => {
+    setIsSyncing(true);
+    await performSync(false);
+    await handleSyncUsers();
+    setIsSyncing(false);
   };
 
   const handleManualImport = (importedLicenses: LicenseItem[]) => {
@@ -700,10 +801,25 @@ export default function App() {
             onAddUser={handleAddUser}
             onUpdateUser={handleUpdateUser}
             onDeleteUser={handleDeleteUser}
+            webAppUrl={webAppUrl}
+            spreadsheetUrl={spreadsheetUrl}
+            driveFolderId={driveFolderId}
+            onSaveConfig={handleSaveAdminConfig}
+            onSyncAll={handleSyncAll}
+            onSyncLicenses={() => performSync(false)}
+            onSyncUsers={handleSyncUsers}
+            isSyncing={isSyncing}
+            lastSyncedAt={lastSyncedAt}
+            licenseCount={licenses.length}
           />
         )}
 
-        {activeTab === 'code-export' && <CodeExportView />}
+        {activeTab === 'code-export' && (
+          <CodeExportView 
+            initialSpreadsheetUrl={spreadsheetUrl || webAppUrl}
+            initialDriveFolderId={driveFolderId}
+          />
+        )}
       </main>
 
       {/* Add / Edit License Modal */}

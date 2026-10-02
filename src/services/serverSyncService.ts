@@ -64,13 +64,14 @@ export async function saveServerUsers(users: UserAccount[]): Promise<boolean> {
   }
 }
 
-export async function fetchServerConfig(): Promise<{ webAppUrl: string; driveFolderId: string } | null> {
+export async function fetchServerConfig(): Promise<{ webAppUrl: string; spreadsheetUrl?: string; driveFolderId: string } | null> {
   try {
     const res = await fetch('/api/config');
     if (!res.ok) return null;
     const json = await res.json();
     return json.success ? { 
       webAppUrl: json.webAppUrl || '', 
+      spreadsheetUrl: json.spreadsheetUrl || '',
       driveFolderId: json.driveFolderId || '' 
     } : null;
   } catch {
@@ -78,11 +79,12 @@ export async function fetchServerConfig(): Promise<{ webAppUrl: string; driveFol
   }
 }
 
-export async function saveServerConfig(webAppUrl?: string, driveFolderId?: string): Promise<boolean> {
+export async function saveServerConfig(webAppUrl?: string, driveFolderId?: string, spreadsheetUrl?: string): Promise<boolean> {
   try {
     const payload: any = {};
     if (webAppUrl !== undefined) payload.webAppUrl = webAppUrl;
     if (driveFolderId !== undefined) payload.driveFolderId = driveFolderId;
+    if (spreadsheetUrl !== undefined) payload.spreadsheetUrl = spreadsheetUrl;
 
     const res = await fetch('/api/config', {
       method: 'POST',

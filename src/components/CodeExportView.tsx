@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Code2, 
   FileCode, 
@@ -11,28 +11,102 @@ import {
   ShieldCheck,
   CheckCircle,
   FileSpreadsheet,
-  Sparkles
+  Sparkles,
+  FolderOpen,
+  HardDrive,
+  Lock,
+  Save
 } from 'lucide-react';
 import { CODE_GS_TEMPLATE, INDEX_HTML_TEMPLATE, SETUP_GUIDE_MARKDOWN } from '../data/appsScriptTemplates';
-import { extractSpreadsheetId } from '../services/googleSyncService';
+import { extractSpreadsheetId, extractDriveFolderId } from '../services/googleSyncService';
+import { fetchServerConfig, saveServerConfig } from '../services/serverSyncService';
 
-export const CodeExportView: React.FC = () => {
+interface CodeExportViewProps {
+  initialSpreadsheetUrl?: string;
+  initialDriveFolderId?: string;
+}
+
+export const CodeExportView: React.FC<CodeExportViewProps> = ({
+  initialSpreadsheetUrl = '',
+  initialDriveFolderId = ''
+}) => {
   const [subTab, setSubTab] = useState<'codegs' | 'indexhtml' | 'guide' | 'schema'>('codegs');
   const [copiedTab, setCopiedTab] = useState<string | null>(null);
-  const [customSheetInput, setCustomSheetInput] = useState('');
+
+  // Persistent spreadsheet input (never resets)
+  const [customSheetInput, setCustomSheetInput] = useState<string>(() => {
+    return localStorage.getItem('simperizinan_export_sheet_input') || 
+           localStorage.getItem('simperizinan_spreadsheet_url') || 
+           initialSpreadsheetUrl || 
+           '';
+  });
+
+  // Persistent google drive folder input (never resets)
+  const [customDriveInput, setCustomDriveInput] = useState<string>(() => {
+    return localStorage.getItem('simperizinan_export_drive_input') || 
+           localStorage.getItem('simperizinan_drive_folder') || 
+           initialDriveFolderId || 
+           '1B53s98xT6FCFQwooHSQgX4_L3Px1qglf';
+  });
+
+  // Sync with server configuration on mount
+  useEffect(() => {
+    (async () => {
+      const cfg = await fetchServerConfig();
+      if (cfg) {
+        if (cfg.spreadsheetUrl && !localStorage.getItem('simperizinan_export_sheet_input')) {
+          setCustomSheetInput(cfg.spreadsheetUrl);
+        }
+        if (cfg.driveFolderId && !localStorage.getItem('simperizinan_export_drive_input')) {
+          setCustomDriveInput(cfg.driveFolderId);
+        }
+      }
+    })();
+  }, []);
+
+  const handleSheetInputChange = (val: string) => {
+    setCustomSheetInput(val);
+    localStorage.setItem('simperizinan_export_sheet_input', val);
+    localStorage.setItem('simperizinan_spreadsheet_url', val);
+    saveServerConfig(undefined, undefined, val);
+  };
+
+  const handleDriveInputChange = (val: string) => {
+    setCustomDriveInput(val);
+    localStorage.setItem('simperizinan_export_drive_input', val);
+    const cleanId = extractDriveFolderId(val);
+    if (cleanId) {
+      localStorage.setItem('simperizinan_drive_folder', cleanId);
+      saveServerConfig(undefined, cleanId);
+    }
+  };
 
   const activeSpreadsheetId = useMemo(() => {
     if (!customSheetInput.trim()) return '';
     return extractSpreadsheetId(customSheetInput) || customSheetInput.trim();
   }, [customSheetInput]);
 
+  const activeDriveFolderId = useMemo(() => {
+    if (!customDriveInput.trim()) return '';
+    return extractDriveFolderId(customDriveInput) || customDriveInput.trim();
+  }, [customDriveInput]);
+
   const activeCodeGs = useMemo(() => {
-    if (!activeSpreadsheetId) return CODE_GS_TEMPLATE;
-    return CODE_GS_TEMPLATE.replace(
-      "SPREADSHEET_ID: 'GANTI_DENGAN_SPREADSHEET_ID_ANDA'",
-      `SPREADSHEET_ID: '${activeSpreadsheetId}'`
-    );
-  }, [activeSpreadsheetId]);
+    let code = CODE_GS_TEMPLATE;
+    if (activeSpreadsheetId) {
+      code = code.replace(
+        "SPREADSHEET_ID: 'GANTI_DENGAN_SPREADSHEET_ID_ANDA'",
+        `SPREADSHEET_ID: '${activeSpreadsheetId}'`
+      );
+    }
+    if (activeDriveFolderId) {
+      code = code.replace(
+        "DRIVE_FOLDER_ID: 'GANTI_DENGAN_FOLDER_ID_DRIVE_ANDA'",
+        `DRIVE_FOLDER_ID: '${activeDriveFolderId}'`
+      );
+    }
+    return code;
+  }, [activeSpreadsheetId, activeDriveFolderId]);
 
   const handleCopy = (text: string, tabName: string) => {
     navigator.clipboard.writeText(text);
@@ -139,50 +213,143 @@ export const CodeExportView: React.FC = () => {
       {/* SUBTAB 1: Code.gs */}
       {subTab === 'codegs' && (
         <div className="space-y-4">
-          {/* Generator Input Spreadsheet ID */}
-          <div className="bg-gradient-to-r from-blue-900/60 via-slate-900 to-slate-900 p-4 rounded-xl border border-blue-800/60 text-xs shadow-md">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Generator Input Spreadsheet ID & Google Drive Folder ID */}
+          <div className="bg-gradient-to-r from-blue-900/60 via-slate-900 to-slate-900 p-5 rounded-2xl border border-blue-800/60 text-xs shadow-lg space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800/80 pb-3">
               <div>
-                <div className="flex items-center gap-1.5 text-blue-300 font-bold">
+                <div className="flex items-center gap-2 text-blue-300 font-bold">
                   <Sparkles className="w-4 h-4 text-amber-400" />
-                  <span>Otomatis Masukkan ID Spreadsheet Anda (Bebas Error):</span>
+                  <span className="text-sm">Otomatis Masukkan ID Spreadsheet & Google Drive Anda:</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1 font-semibold">
+                    <Lock className="w-3 h-3 text-emerald-400" /> Tersimpan & Tidak Ter-reset
+                  </span>
                 </div>
-                <p className="text-slate-400 text-[11px] mt-0.5">
-                  Tempel link Google Spreadsheet Anda di sini. Kode di bawah akan langsung otomatis disesuaikan dengan ID Anda!
+                <p className="text-slate-400 text-xs mt-1">
+                  Tempel link Google Spreadsheet dan Google Drive Anda di bawah ini. Kode <code>Code.gs</code> di bawah akan langsung otomatis disesuaikan dan siap di-copy tanpa perlu edit manual lagi!
                 </p>
               </div>
 
-              {activeSpreadsheetId && (
+              {(activeSpreadsheetId || activeDriveFolderId) && (
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 text-[11px] font-bold self-start sm:self-auto">
                   <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>ID Disematkan ke Kode!</span>
+                  <span>ID Disematkan ke Code.gs!</span>
                 </div>
               )}
             </div>
 
-            <div className="mt-3 flex gap-2">
-              <input
-                type="text"
-                value={customSheetInput}
-                onChange={(e) => setCustomSheetInput(e.target.value)}
-                placeholder="Contoh: https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit"
-                className="flex-1 bg-slate-950/80 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono text-xs placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
-              />
-              {customSheetInput && (
-                <button
-                  type="button"
-                  onClick={() => setCustomSheetInput('')}
-                  className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg font-semibold text-xs cursor-pointer"
-                >
-                  Reset
-                </button>
-              )}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Kolom 1: Google Spreadsheet */}
+              <div className="space-y-1.5 bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                    <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>1. Link atau ID Google Spreadsheet:</span>
+                  </label>
+                  {activeSpreadsheetId && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-emerald-950 text-emerald-300 font-mono border border-emerald-800/60">
+                      Baris 12 Code.gs
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={customSheetInput}
+                    onChange={(e) => handleSheetInputChange(e.target.value)}
+                    placeholder="Contoh: https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5n.../edit"
+                    className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono text-xs placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+                  />
+                  {customSheetInput && (
+                    <button
+                      type="button"
+                      onClick={() => handleSheetInputChange('')}
+                      className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 rounded-lg text-xs cursor-pointer"
+                      title="Hapus input"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
+                  {activeSpreadsheetId ? (
+                    <span className="text-emerald-400 font-mono truncate max-w-[280px]">
+                      ID: <strong>{activeSpreadsheetId}</strong>
+                    </span>
+                  ) : (
+                    <span>ID Spreadsheet di baris 12 Code.gs</span>
+                  )}
+                  {customSheetInput && customSheetInput.startsWith('http') && (
+                    <a
+                      href={customSheetInput}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-400 hover:text-blue-300 flex items-center gap-1 font-medium transition"
+                    >
+                      <span>Buka Sheet</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+              </div>
+
+              {/* Kolom 2: Google Drive Folder */}
+              <div className="space-y-1.5 bg-slate-950/70 p-3.5 rounded-xl border border-slate-800">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-bold text-slate-200 flex items-center gap-1.5">
+                    <FolderOpen className="w-3.5 h-3.5 text-amber-400" />
+                    <span>2. Link atau ID Folder Google Drive (Foto & Berkas):</span>
+                  </label>
+                  {activeDriveFolderId && (
+                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-950 text-amber-300 font-mono border border-amber-800/60">
+                      Baris 15 Code.gs
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={customDriveInput}
+                    onChange={(e) => handleDriveInputChange(e.target.value)}
+                    placeholder="Contoh: https://drive.google.com/drive/folders/1B53s98xT... ATAU Folder ID"
+                    className="flex-1 bg-slate-900 border border-slate-700 rounded-lg px-3 py-2 text-white font-mono text-xs placeholder:text-slate-500 focus:outline-none focus:border-amber-500"
+                  />
+                  {customDriveInput && (
+                    <button
+                      type="button"
+                      onClick={() => handleDriveInputChange('')}
+                      className="px-2.5 py-1 bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 rounded-lg text-xs cursor-pointer"
+                      title="Hapus input"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center justify-between text-[11px] text-slate-400 pt-0.5">
+                  {activeDriveFolderId ? (
+                    <span className="text-amber-400 font-mono truncate max-w-[280px]">
+                      Folder ID: <strong>{activeDriveFolderId}</strong>
+                    </span>
+                  ) : (
+                    <span>ID Folder Drive di baris 15 Code.gs</span>
+                  )}
+                  {activeDriveFolderId && (
+                    <a
+                      href={`https://drive.google.com/drive/folders/${activeDriveFolderId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-amber-400 hover:text-amber-300 flex items-center gap-1 font-medium transition"
+                    >
+                      <span>Buka Folder</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+              </div>
             </div>
-            {activeSpreadsheetId && (
-              <p className="text-[11px] text-emerald-400 font-mono mt-2">
-                ID Terdeteksi: <strong>{activeSpreadsheetId}</strong> (Baris 12 Code.gs sudah diperbarui)
-              </p>
-            )}
           </div>
 
           <div className="bg-slate-950 rounded-2xl border border-slate-800 shadow-xl overflow-hidden flex flex-col">

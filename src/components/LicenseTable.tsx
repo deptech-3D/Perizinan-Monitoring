@@ -22,7 +22,8 @@ import {
   Minimize2,
   Maximize2,
   Info,
-  Upload
+  Upload,
+  Building2
 } from 'lucide-react';
 import { LicenseItem, UserAccount } from '../types';
 import { 
@@ -60,10 +61,9 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedFilter, setSelectedFilter] = useState<string>(defaultFilter);
-  const [sortField, setSortField] = useState<'expiryDate' | 'documentName' | 'remainingDays'>('remainingDays');
+  const [sortField, setSortField] = useState<'expiryDate' | 'documentName' | 'remainingDays' | 'status'>('remainingDays');
   const [sortAsc, setSortAsc] = useState(true);
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
-  const [isCompactMode, setIsCompactMode] = useState<boolean>(true);
   const [expandedRowIds, setExpandedRowIds] = useState<Set<string>>(new Set());
 
   const toggleRow = (id: string) => {
@@ -76,6 +76,14 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
       }
       return next;
     });
+  };
+
+  const toggleAllRows = () => {
+    if (expandedRowIds.size === filteredLicenses.length) {
+      setExpandedRowIds(new Set());
+    } else {
+      setExpandedRowIds(new Set(filteredLicenses.map(l => l.id)));
+    }
   };
 
   React.useEffect(() => {
@@ -169,6 +177,8 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
           diff = daysA - daysB;
         } else if (sortField === 'expiryDate') {
           diff = new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime();
+        } else if (sortField === 'status') {
+          diff = (a.status || '').localeCompare(b.status || '');
         } else {
           diff = (a.documentName || '').localeCompare(b.documentName || '');
         }
@@ -176,7 +186,7 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
       });
   }, [licenses, searchQuery, selectedFilter, sortField, sortAsc]);
 
-  const toggleSort = (field: 'expiryDate' | 'documentName' | 'remainingDays') => {
+  const toggleSort = (field: 'expiryDate' | 'documentName' | 'remainingDays' | 'status') => {
     if (sortField === field) {
       setSortAsc(!sortAsc);
     } else {
@@ -399,18 +409,14 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
 
         {/* Buttons */}
         <div className="flex items-center gap-2 justify-end flex-wrap">
-          {/* Toggle Mode Fit Layar (Kompak vs Lebar) */}
+          {/* Toggle Buka/Tutup Semua Rincian */}
           <button
-            onClick={() => setIsCompactMode(!isCompactMode)}
-            title={isCompactMode ? "Ubah ke Mode Penuh (Tampilkan semua teks panjang)" : "Ubah ke Mode Fit Layar (Teks panjang diringkas, klik untuk buka)"}
-            className={`px-3 py-2 text-xs font-semibold rounded-lg transition border flex items-center gap-1.5 cursor-pointer ${
-              isCompactMode 
-                ? 'bg-blue-50 text-blue-700 border-blue-300 hover:bg-blue-100' 
-                : 'bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200'
-            }`}
+            onClick={toggleAllRows}
+            title={expandedRowIds.size === filteredLicenses.length ? "Tutup semua rincian dokumen" : "Buka semua rincian dokumen"}
+            className="px-3 py-2 text-xs font-semibold rounded-lg transition border flex items-center gap-1.5 cursor-pointer bg-slate-100 text-slate-700 border-slate-300 hover:bg-slate-200"
           >
-            {isCompactMode ? <Minimize2 className="w-3.5 h-3.5 text-blue-600" /> : <Maximize2 className="w-3.5 h-3.5 text-slate-600" />}
-            <span>{isCompactMode ? 'Mode Fit Layar' : 'Mode Lebar Penuh'}</span>
+            {expandedRowIds.size === filteredLicenses.length ? <Minimize2 className="w-3.5 h-3.5 text-slate-600" /> : <Maximize2 className="w-3.5 h-3.5 text-blue-600" />}
+            <span>{expandedRowIds.size === filteredLicenses.length ? 'Tutup Semua Rincian' : 'Buka Semua Rincian'}</span>
           </button>
 
           {onRefreshData && (
@@ -455,23 +461,22 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
         </div>
       </div>
 
-      {/* Info Banner for Compact Mode */}
-      {isCompactMode && (
-        <div className="bg-sky-50/80 border border-sky-200 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs text-sky-900 gap-3">
-          <div className="flex items-center gap-2">
-            <Info className="w-4 h-4 text-sky-600 flex-shrink-0" />
-            <span>
-              <strong>Mode Fit Layar Aktif:</strong> Teks panjang otomatis disingkat agar tabel pas di layar tanpa perlu digeser. <strong>Klik pada nama dokumen, instansi, atau tombol panah [▼]</strong> untuk melihat rincian teks lengkap.
-            </span>
-          </div>
-          <button 
-            onClick={() => setIsCompactMode(false)}
-            className="text-[11px] text-sky-700 hover:text-sky-900 font-bold underline flex-shrink-0"
-          >
-            Buka Mode Penuh
-          </button>
+      {/* Info Banner */}
+      <div className="bg-blue-50/80 border border-blue-200 rounded-xl px-4 py-2.5 flex items-center justify-between text-xs text-blue-900 gap-3">
+        <div className="flex items-center gap-2">
+          <Info className="w-4 h-4 text-blue-600 flex-shrink-0" />
+          <span>
+            <strong>Info:</strong> Kolom <strong>Instansi Penerbit</strong>, <strong>Penanggung Jawab (PIC)</strong>, dan <strong>Berkas Google Drive</strong> ditampilkan lengkap saat Anda <strong>mengklik baris perizinan</strong>.
+          </span>
         </div>
-      )}
+        <button 
+          type="button"
+          onClick={toggleAllRows}
+          className="text-[11px] text-blue-700 hover:text-blue-900 font-bold underline flex-shrink-0 cursor-pointer"
+        >
+          {expandedRowIds.size === filteredLicenses.length ? 'Tutup Semua Rincian' : 'Buka Semua Rincian'}
+        </button>
+      </div>
 
       {/* Main Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-xs overflow-hidden">
@@ -479,20 +484,19 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
           <table className="w-full text-left border-collapse text-xs md:text-sm">
             <thead>
               <tr className="bg-slate-900 text-white font-semibold text-xs tracking-wider border-b border-slate-800">
-                <th className="py-3.5 px-4 w-12 text-center text-slate-400">#</th>
+                <th className="py-3.5 px-3 w-12 text-center text-slate-400">#</th>
                 <th 
                   onClick={() => toggleSort('documentName')}
-                  className="py-3.5 px-4 cursor-pointer hover:text-blue-300 select-none"
+                  className="py-3.5 px-4 cursor-pointer hover:text-blue-300 select-none min-w-[260px]"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Nama Dokumen & Nomor SK</span>
                     <ArrowUpDown className="w-3.5 h-3.5 opacity-70" />
                   </div>
                 </th>
-                <th className="py-3.5 px-4">Instansi Penerbit</th>
                 <th 
                   onClick={() => toggleSort('expiryDate')}
-                  className="py-3.5 px-4 cursor-pointer hover:text-blue-300 select-none"
+                  className="py-3.5 px-4 cursor-pointer hover:text-blue-300 select-none min-w-[150px] whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Masa Berlaku</span>
@@ -501,23 +505,29 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
                 </th>
                 <th 
                   onClick={() => toggleSort('remainingDays')}
-                  className="py-3.5 px-4 cursor-pointer hover:text-blue-300 select-none"
+                  className="py-3.5 px-4 cursor-pointer hover:text-blue-300 select-none min-w-[160px] whitespace-nowrap"
                 >
                   <div className="flex items-center gap-1.5">
                     <span>Sisa Waktu (Status)</span>
                     <ArrowUpDown className="w-3.5 h-3.5 opacity-70" />
                   </div>
                 </th>
-                <th className="py-3.5 px-4">Penanggung Jawab (PIC)</th>
-                <th className="py-3.5 px-4 text-center">Berkas Drive</th>
-                <th className="py-3.5 px-4">Status Proses</th>
-                <th className="py-3.5 px-4 text-right">Aksi</th>
+                <th 
+                  onClick={() => toggleSort('status')}
+                  className="py-3.5 px-4 cursor-pointer hover:text-blue-300 select-none min-w-[170px]"
+                >
+                  <div className="flex items-center gap-1.5">
+                    <span>Status Proses</span>
+                    <ArrowUpDown className="w-3.5 h-3.5 opacity-70" />
+                  </div>
+                </th>
+                <th className="py-3.5 px-4 text-right min-w-[120px] whitespace-nowrap">Aksi</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredLicenses.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-12 text-center text-slate-400">
+                  <td colSpan={6} className="py-12 text-center text-slate-400">
                     <div className="flex flex-col items-center justify-center gap-2">
                       <FileQuestion className="w-10 h-10 text-slate-300" />
                       <p className="font-semibold text-slate-600">Tidak ada data perizinan ditemukan</p>
@@ -541,12 +551,12 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
                         } ${isExpanded ? 'bg-blue-50/30 ring-1 ring-blue-300/50' : ''}`}
                       >
                         {/* Kolom Nomor & Expand Icon */}
-                        <td className="py-3 px-2 text-center text-slate-400 font-mono text-xs">
+                        <td className="py-3.5 px-3 text-center text-slate-400 font-mono text-xs align-top">
                           <button
                             type="button"
                             onClick={() => toggleRow(item.id)}
                             className="p-1 rounded hover:bg-slate-200/70 text-slate-500 hover:text-blue-600 transition inline-flex items-center justify-center gap-1 group cursor-pointer"
-                            title={isExpanded ? "Tutup rincian teks" : "Klik untuk tampilkan rincian teks lengkap"}
+                            title={isExpanded ? "Tutup rincian perizinan" : "Klik untuk tampilkan rincian instansi & PIC"}
                           >
                             {isExpanded ? (
                               <ChevronDown className="w-3.5 h-3.5 text-blue-600" />
@@ -557,50 +567,35 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
                           </button>
                         </td>
 
-                        {/* Dokumen & Nomor (Klik untuk Buka/Tutup) */}
-                        <td className="py-3 px-4">
+                        {/* Dokumen & Nomor SK (Bisa dibaca FULL, sambung ke bawah tanpa terpotong) */}
+                        <td className="py-3.5 px-4 align-top">
                           <div 
                             onClick={() => toggleRow(item.id)}
-                            className="cursor-pointer group select-none"
-                            title="Klik untuk melihat teks nama lengkap"
+                            className="cursor-pointer group select-text"
+                            title="Klik untuk membuka/menutup rincian instansi & PIC"
                           >
-                            <div className={`font-bold text-slate-900 leading-snug group-hover:text-blue-600 transition ${
-                              isCompactMode && !isExpanded ? 'max-w-[210px] truncate' : ''
-                            }`}>
+                            <div className="font-bold text-slate-900 leading-snug group-hover:text-blue-600 transition break-words whitespace-normal text-xs md:text-sm">
                               {item.documentName}
                             </div>
-                          </div>
-                          <div className="flex items-center gap-1.5 mt-1">
-                            <code 
-                              onClick={() => toggleRow(item.id)}
-                              className={`text-[11px] font-mono font-medium px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 cursor-pointer hover:bg-slate-200 transition ${
-                                isCompactMode && !isExpanded ? 'max-w-[150px] truncate' : ''
-                              }`}
-                              title="Klik untuk melihat nomor lengkap"
-                            >
-                              {item.licenseNumber}
-                            </code>
-                            <span className="text-[10px] text-slate-400 font-mono flex-shrink-0">
-                              {item.id}
-                            </span>
+                            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+                              <code 
+                                className="text-[11px] font-mono font-semibold px-2 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200 group-hover:bg-blue-50 group-hover:text-blue-800 group-hover:border-blue-200 transition break-words whitespace-normal"
+                              >
+                                {item.licenseNumber}
+                              </code>
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                {item.id}
+                              </span>
+                            </div>
                           </div>
                         </td>
 
-                        {/* Instansi (Klik untuk Buka/Tutup) */}
-                        <td className="py-3 px-4 text-slate-700">
-                          <span 
-                            onClick={() => toggleRow(item.id)}
-                            className={`inline-block px-2 py-0.5 rounded-md bg-slate-100 text-slate-800 text-xs font-medium cursor-pointer hover:bg-slate-200 transition ${
-                              isCompactMode && !isExpanded ? 'max-w-[130px] truncate' : ''
-                            }`}
-                            title="Klik untuk melihat instansi lengkap"
-                          >
-                            {item.issuer}
-                          </span>
-                        </td>
-
-                        {/* Tanggal Terbit & Expire */}
-                        <td className="py-3 px-4 whitespace-nowrap">
+                        {/* Tanggal Terbit & Expire (Masa Berlaku) */}
+                        <td 
+                          onClick={() => toggleRow(item.id)}
+                          className="py-3.5 px-4 whitespace-nowrap align-top cursor-pointer"
+                          title="Klik untuk membuka/menutup rincian"
+                        >
                           <div className="text-xs">
                             <span className="text-slate-400 text-[11px]">Exp:</span>{' '}
                             <strong className="text-slate-900">{formatDateIndo(item.expiryDate)}</strong>
@@ -610,8 +605,12 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
                           </div>
                         </td>
 
-                        {/* Sisa Waktu & Badge */}
-                        <td className="py-3 px-4 whitespace-nowrap">
+                        {/* Sisa Waktu & Badge (Sisa Waktu Status) */}
+                        <td 
+                          onClick={() => toggleRow(item.id)}
+                          className="py-3.5 px-4 whitespace-nowrap align-top cursor-pointer"
+                          title="Klik untuk membuka/menutup rincian"
+                        >
                           <div className="flex items-center gap-1.5">
                             <span className={`w-2 h-2 rounded-full ${statusInfo.dotColor} flex-shrink-0`}></span>
                             <span 
@@ -629,92 +628,65 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
                           )}
                         </td>
 
-                        {/* PIC (Klik untuk Buka/Tutup) */}
-                        <td className="py-3 px-4">
-                          <div 
-                            onClick={() => toggleRow(item.id)}
-                            className={`font-semibold text-slate-800 text-xs cursor-pointer hover:text-blue-600 transition ${
-                              isCompactMode && !isExpanded ? 'max-w-[130px] truncate' : ''
-                            }`}
-                            title="Klik untuk melihat PIC lengkap"
-                          >
-                            {item.picName}
-                          </div>
-                          <a 
-                            href={`mailto:${item.picEmail}`}
-                            className={`text-[11px] text-blue-600 hover:underline flex items-center gap-1 mt-0.5 ${
-                              isCompactMode && !isExpanded ? 'max-w-[140px] truncate' : ''
-                            }`}
-                            title={item.picEmail}
-                          >
-                            <Mail className="w-3 h-3 text-blue-500 flex-shrink-0" />
-                            <span className={isCompactMode && !isExpanded ? "truncate" : ""}>{item.picEmail}</span>
-                          </a>
-                        </td>
-
-                        {/* Link Berkas Drive */}
-                        <td className="py-3 px-4 text-center whitespace-nowrap">
-                          {item.fileUrl ? (
-                            <a
-                              href={item.fileUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 transition"
-                              title={item.fileName || 'Buka Berkas Google Drive'}
+                        {/* Status Proses (Pindah ke kolom setelah Sisa Waktu) */}
+                        <td 
+                          onClick={() => toggleRow(item.id)}
+                          className="py-3.5 px-4 align-top cursor-pointer group"
+                          title="Klik untuk membuka/menutup rincian instansi & PIC"
+                        >
+                          <div className="flex flex-col items-start gap-1">
+                            <span
+                              className={`inline-block px-3 py-1 rounded-md text-xs font-bold border transition ${
+                                item.status === 'Selesai'
+                                  ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                  : item.status === 'Dalam Proses'
+                                  ? 'bg-[#fef3c7] text-[#92400e] border-[#fcd34d]'
+                                  : 'bg-slate-100 text-slate-700 border-slate-200'
+                              }`}
                             >
-                              <FolderOpen className="w-3.5 h-3.5 text-blue-600" />
-                              <span>Drive</span>
-                              <ExternalLink className="w-3 h-3 text-blue-500" />
-                            </a>
-                          ) : (
-                            <span className="text-[11px] text-slate-400 italic">Belum ada</span>
-                          )}
-                        </td>
-
-                        {/* Status Perpanjangan */}
-                        <td className="py-3 px-4 whitespace-nowrap">
-                          <span
-                            className={`inline-block px-2.5 py-1 rounded-md text-xs font-bold ${
-                              item.status === 'Selesai'
-                                ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                                : item.status === 'Dalam Proses'
-                                ? 'bg-amber-100 text-amber-800 border border-amber-200'
-                                : 'bg-slate-100 text-slate-700 border border-slate-200'
-                            }`}
-                          >
-                            {item.status}
-                          </span>
-                          {item.notes && (
-                            <p className="text-[11px] text-slate-500 mt-1 max-w-[150px] truncate" title={item.notes}>
-                              {item.notes}
-                            </p>
-                          )}
+                              {item.status || 'Belum Diproses'}
+                            </span>
+                            {item.notes && (
+                              <p className="text-[11px] text-slate-500 leading-tight mt-0.5 break-words whitespace-normal max-w-[220px]" title={item.notes}>
+                                {item.notes}
+                              </p>
+                            )}
+                          </div>
                         </td>
 
                         {/* Aksi */}
-                        <td className="py-3 px-4 text-right whitespace-nowrap">
+                        <td className="py-3.5 px-4 text-right whitespace-nowrap align-top">
                           <div className="flex items-center justify-end gap-1">
+                            {item.fileUrl && (
+                              <a
+                                href={item.fileUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Buka Berkas Google Drive"
+                                className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 hover:text-blue-800 transition"
+                              >
+                                <FolderOpen className="w-4 h-4" />
+                              </a>
+                            )}
                             <button
                               onClick={() => onSendManualReminder(item)}
                               title="Kirim Notifikasi Pengingat Manual via Email"
-                              className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 hover:text-amber-700 transition"
+                              className="p-1.5 rounded-lg text-amber-600 hover:bg-amber-50 hover:text-amber-700 transition cursor-pointer"
                             >
                               <Mail className="w-4 h-4" />
                             </button>
-
                             <button
                               onClick={() => onEditLicense(item)}
                               title="Edit Data Perizinan"
-                              className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 hover:text-blue-800 transition"
+                              className="p-1.5 rounded-lg text-blue-600 hover:bg-blue-50 hover:text-blue-800 transition cursor-pointer"
                             >
                               <Edit3 className="w-4 h-4" />
                             </button>
-
                             {currentUser.role === 'Admin' ? (
                               <button
                                 onClick={() => onDeleteLicense(item)}
                                 title="Hapus Data (Khusus Admin)"
-                                className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700 transition"
+                                className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700 transition cursor-pointer"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
@@ -733,11 +705,11 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
                       {/* Baris Rincian Lengkap Saat Diklik (Accordion Drawer) */}
                       {isExpanded && (
                         <tr className="bg-blue-50/50 border-b border-blue-200">
-                          <td colSpan={9} className="p-3.5 sm:p-4">
-                            <div className="bg-white p-4 rounded-xl border border-blue-200 shadow-xs space-y-3">
-                              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                          <td colSpan={6} className="p-3.5 sm:p-5">
+                            <div className="bg-white p-4 sm:p-5 rounded-2xl border border-blue-200 shadow-sm space-y-4">
+                              <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
                                 <div className="flex items-center gap-2">
-                                  <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wider bg-blue-100/70 px-2 py-0.5 rounded">
+                                  <span className="text-[11px] font-bold text-blue-700 uppercase tracking-wider bg-blue-100/80 px-2.5 py-1 rounded">
                                     Rincian Lengkap Dokumen
                                   </span>
                                   <span className="text-xs font-mono font-bold text-slate-500">{item.id}</span>
@@ -745,67 +717,97 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => toggleRow(item.id)}
-                                  className="text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1 cursor-pointer"
+                                  className="text-xs font-semibold text-slate-500 hover:text-slate-800 flex items-center gap-1 cursor-pointer bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded-lg transition"
                                 >
                                   <span>Tutup Rincian</span>
                                   <ChevronUp className="w-3.5 h-3.5" />
                                 </button>
                               </div>
 
-                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-xs">
-                                <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                                  <span className="text-slate-400 block text-[11px] font-medium">Nama Dokumen Lengkap:</span>
-                                  <p className="font-bold text-slate-900 mt-0.5 text-sm">{item.documentName}</p>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5 text-xs">
+                                {/* Instansi Penerbit - Ditampilkan Lengkap Saat Diklik */}
+                                <div className="bg-blue-50/70 p-3 rounded-xl border border-blue-200 col-span-1 sm:col-span-2 lg:col-span-1">
+                                  <span className="text-blue-700 block text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5">
+                                    <Building2 className="w-3.5 h-3.5 text-blue-600" />
+                                    <span>Instansi Penerbit:</span>
+                                  </span>
+                                  <p className="font-bold text-slate-900 mt-1 text-sm">{item.issuer || '-'}</p>
                                 </div>
 
-                                <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                                  <span className="text-slate-400 block text-[11px] font-medium">Nomor SK / Sertifikat:</span>
-                                  <p className="font-mono font-bold text-slate-800 mt-0.5 break-all select-all">{item.licenseNumber}</p>
+                                {/* Penanggung Jawab (PIC) */}
+                                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                  <span className="text-slate-500 block text-[11px] font-medium">Penanggung Jawab (PIC):</span>
+                                  <p className="font-bold text-slate-900 mt-1 text-sm">{item.picName || '-'}</p>
+                                  {item.picEmail && (
+                                    <a href={`mailto:${item.picEmail}`} className="text-blue-600 hover:underline text-xs flex items-center gap-1 mt-1">
+                                      <Mail className="w-3.5 h-3.5 text-blue-500" />
+                                      <span>{item.picEmail}</span>
+                                    </a>
+                                  )}
                                 </div>
 
-                                <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                                  <span className="text-slate-400 block text-[11px] font-medium">Instansi Penerbit:</span>
-                                  <p className="font-semibold text-slate-900 mt-0.5">{item.issuer}</p>
+                                {/* Berkas Google Drive */}
+                                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                  <span className="text-slate-500 block text-[11px] font-medium">Berkas Dokumen:</span>
+                                  {item.fileUrl ? (
+                                    <div className="mt-1.5">
+                                      <a
+                                        href={item.fileUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-blue-700 bg-blue-100 hover:bg-blue-200 transition border border-blue-300"
+                                      >
+                                        <FolderOpen className="w-4 h-4 text-blue-600" />
+                                        <span>Buka di Google Drive</span>
+                                        <ExternalLink className="w-3 h-3 text-blue-500" />
+                                      </a>
+                                      {item.fileName && (
+                                        <span className="text-[11px] text-slate-500 block mt-1 truncate" title={item.fileName}>
+                                          {item.fileName} ({item.fileSize || '-'})
+                                        </span>
+                                      )}
+                                    </div>
+                                  ) : (
+                                    <p className="text-slate-400 italic mt-1 text-xs">Belum ada berkas terlampir</p>
+                                  )}
                                 </div>
 
-                                <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                                  <span className="text-slate-400 block text-[11px] font-medium">Masa Berlaku:</span>
-                                  <p className="font-semibold text-slate-900 mt-0.5">
+                                {/* Masa Berlaku */}
+                                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                                  <span className="text-slate-500 block text-[11px] font-medium">Masa Berlaku:</span>
+                                  <p className="font-semibold text-slate-900 mt-1">
                                     Terbit: {formatDateIndo(item.issueDate)} <br/>
                                     Exp: <strong className="text-rose-600">{formatDateIndo(item.expiryDate)}</strong>
                                   </p>
                                 </div>
 
-                                <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                                  <span className="text-slate-400 block text-[11px] font-medium">Status & Keterlambatan:</span>
-                                  <p className="font-bold text-rose-600 mt-0.5 flex items-center gap-1.5">
-                                    <span className={`w-2 h-2 rounded-full ${statusInfo.dotColor}`}></span>
-                                    <span>{statusInfo.label}</span>
-                                  </p>
-                                  {statusInfo.duration && (
-                                    <span className="text-[11px] text-slate-500 block mt-0.5 font-medium">
-                                      {statusInfo.duration.fullText} {statusInfo.duration.isPast ? 'lalu' : 'lagi'}
+                                {/* Status Proses & Catatan */}
+                                <div className="bg-slate-50 p-3 rounded-xl border border-slate-200 col-span-1 sm:col-span-2">
+                                  <span className="text-slate-500 block text-[11px] font-medium">Status Proses & Catatan:</span>
+                                  <div className="flex items-center gap-2 mt-1">
+                                    <span
+                                      className={`inline-block px-2.5 py-0.5 rounded text-xs font-bold border ${
+                                        item.status === 'Selesai'
+                                          ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                                          : item.status === 'Dalam Proses'
+                                          ? 'bg-[#fef3c7] text-[#92400e] border-[#fcd34d]'
+                                          : 'bg-slate-200 text-slate-700 border-slate-300'
+                                      }`}
+                                    >
+                                      {item.status || 'Belum Diproses'}
                                     </span>
+                                  </div>
+                                  {item.notes ? (
+                                    <p className="text-slate-700 mt-2 bg-white p-2.5 rounded-lg border border-slate-200 text-xs break-words whitespace-normal">
+                                      {item.notes}
+                                    </p>
+                                  ) : (
+                                    <p className="text-slate-400 italic text-xs mt-1">Tidak ada catatan tambahan.</p>
                                   )}
-                                </div>
-
-                                <div className="bg-slate-50 p-2.5 rounded-lg border border-slate-100">
-                                  <span className="text-slate-400 block text-[11px] font-medium">Penanggung Jawab (PIC):</span>
-                                  <p className="font-bold text-slate-900 mt-0.5">{item.picName}</p>
-                                  <a href={`mailto:${item.picEmail}`} className="text-blue-600 hover:underline text-[11px] block mt-0.5">
-                                    {item.picEmail}
-                                  </a>
                                 </div>
                               </div>
 
-                              {item.notes && (
-                                <div className="pt-2 border-t border-slate-100 text-xs">
-                                  <span className="text-slate-400 block text-[11px] font-medium">Catatan / Keterangan:</span>
-                                  <p className="text-slate-700 italic mt-0.5 bg-slate-50 p-2 rounded border border-slate-100">{item.notes}</p>
-                                </div>
-                              )}
-
-                              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100 flex-wrap">
                                 {item.fileUrl && (
                                   <a
                                     href={item.fileUrl}
@@ -818,6 +820,14 @@ export const LicenseTable: React.FC<LicenseTableProps> = ({
                                     <ExternalLink className="w-3 h-3 text-blue-500" />
                                   </a>
                                 )}
+                                <button
+                                  type="button"
+                                  onClick={() => onSendManualReminder(item)}
+                                  className="px-3 py-1.5 rounded-lg text-xs font-semibold text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200 transition flex items-center gap-1.5 cursor-pointer"
+                                >
+                                  <Mail className="w-3.5 h-3.5 text-amber-600" />
+                                  <span>Kirim Notifikasi Email</span>
+                                </button>
                                 <button
                                   type="button"
                                   onClick={() => onEditLicense(item)}

@@ -45,15 +45,17 @@ export default defineConfig(() => {
           ],
         },
         devOptions: {
-          enabled: true,
-          type: 'module',
+          enabled: false,
         },
       }),
     ],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve('.'),
       },
+    },
+    build: {
+      chunkSizeWarningLimit: 1200,
     },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.

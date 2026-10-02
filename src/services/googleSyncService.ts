@@ -43,12 +43,36 @@ export function extractSpreadsheetId(url: string): string | null {
 /**
  * Fetch licenses directly from Google Sheets (via gviz/tq API or Google Apps Script Web App)
  */
-export async function fetchLicensesFromGoogleSheets(urlOrWebApp: string): Promise<{ success: boolean; data?: LicenseItem[]; message?: string }> {
+export async function fetchLicensesFromGoogleSheets(urlOrWebApp: string): Promise<{ success: boolean; data?: LicenseItem[]; message?: string; errorType?: string }> {
   if (!urlOrWebApp || !urlOrWebApp.startsWith('http')) {
     return { success: false, message: 'URL belum valid atau kosong.' };
   }
 
   const cleanUrl = urlOrWebApp.trim();
+
+  // Try server proxy first (bypasses browser CORS & iframe redirect limitations)
+  try {
+    const proxyRes = await fetch('/api/sync/fetch-licenses', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url: cleanUrl })
+    });
+    if (proxyRes.ok) {
+      const proxyJson = await proxyRes.json();
+      if (proxyJson.success) {
+        return { success: true, data: proxyJson.data };
+      }
+      if (proxyJson.errorType || proxyJson.message) {
+        return {
+          success: false,
+          errorType: proxyJson.errorType,
+          message: proxyJson.message
+        };
+      }
+    }
+  } catch {
+    // If backend proxy is unreachable, continue with direct fetch
+  }
 
   // Mode 1: Direct Google Spreadsheet Link (docs.google.com/spreadsheets/d/...)
   const sheetId = extractSpreadsheetId(cleanUrl);
@@ -60,6 +84,15 @@ export async function fetchLicensesFromGoogleSheets(urlOrWebApp: string): Promis
         throw new Error(`Gagal membuka Spreadsheet (Status ${response.status}). Pastikan Akses Berbagi diatur ke 'Siapa saja yang memiliki link'.`);
       }
       const text = await response.text();
+
+      if (text.includes('<html') || text.includes('ServiceLogin') || text.includes('accounts.google.com')) {
+        return {
+          success: false,
+          errorType: 'SPREADSHEET_RESTRICTED',
+          message: 'Google Spreadsheet Anda masih berstatus "Dibatasi" (Private). Silakan buka spreadsheet Anda di Google Drive, klik tombol hijau "Bagikan" (Share) di pojok kanan atas, lalu ubah Akses Umum menjadi "Siapa saja yang memiliki link" -> Pengamat (Viewer).'
+        };
+      }
+
       // Format Google Visualization: /*O_o*/\ngoogle.visualization.Query.setResponse({...});
       const jsonStart = text.indexOf('{');
       const jsonEnd = text.lastIndexOf('}');
@@ -131,7 +164,17 @@ export async function fetchLicensesFromGoogleSheets(urlOrWebApp: string): Promis
       throw new Error(`HTTP error ${response.status}: ${response.statusText}`);
     }
 
-    const json = await response.json();
+    const text = await response.text();
+
+    if (text.includes('GANTI_DENGAN_SPREADSHEET_ID_ANDA') || text.includes('Illegal spreadsheet id')) {
+      return {
+        success: false,
+        errorType: 'APPS_SCRIPT_TEMPLATE_ID',
+        message: 'Google Apps Script Anda masih berisi template "GANTI_DENGAN_SPREADSHEET_ID_ANDA". Silakan buka tab "Kode Sumber Apps Script", salin kode Code.gs yang sudah terisi ID Anda, lalu tempel di script.google.com dan klik Deploy > Versi Baru.'
+      };
+    }
+
+    const json = JSON.parse(text);
 
     if (json && json.success && Array.isArray(json.data)) {
       return { success: true, data: json.data };
@@ -220,9 +263,9 @@ export async function deleteLicenseFromGoogleSheets(
 /**
  * Test connection to Google Apps Script Web App
  */
-export async function testGoogleAppsScriptConnection(webAppUrl: string): Promise<{ success: boolean; message: string; rowCount?: number }> {
+export async function testGoogleAppsScriptConnection(webAppUrl: string): Promise<{ success: boolean; message: string; rowCount?: number; errorType?: string }> {
   if (!webAppUrl || !webAppUrl.trim()) {
-    return { success: false, message: 'Masukkan URL Web App terlebih dahulu.' };
+    return { success: false, message: 'Masukkan URL Web App atau Spreadsheet terlebih dahulu.' };
   }
 
   const cleanUrl = webAppUrl.trim();
@@ -241,7 +284,8 @@ export async function testGoogleAppsScriptConnection(webAppUrl: string): Promise
     } else {
       return {
         success: false,
-        message: res.message || 'Gagal menerima respon valid dari Google Apps Script.'
+        errorType: res.errorType,
+        message: res.message || 'Gagal menerima respon valid dari Google Sheets / Apps Script.'
       };
     }
   } catch (err: any) {
